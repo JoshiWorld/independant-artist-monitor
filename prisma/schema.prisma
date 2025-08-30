@@ -14,16 +14,44 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
+model Benchmark {
+    id        String @id @default(cuid())
+    metric    String // "ctr", "cpc", "roas"
+    greenMax  Float // z.B. 0.50
+    yellowMax Float // z.B. 0.60
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdAccount {
+    id        String     @id
     name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String
+    campaigns Campaign[]
+}
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
+model Campaign {
+    id        String        @id
+    name      String
+    account   AdAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    accountId String
+    metrics   DailyMetric[]
+}
 
-    @@index([name])
+model DailyMetric {
+    id          String   @id @default(cuid())
+    campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+    campaignId  String
+    date        DateTime @default(now())
+    conversions Int
+    spend       Float
+    impressions Int
+    ctr         Float
+    cpc         Float
+    clicks      Int
+    convPrice   Float
 }
 
 // Necessary for Next auth
@@ -62,7 +90,11 @@ model User {
     image         String?
     accounts      Account[]
     sessions      Session[]
-    posts         Post[]
+
+    metaAccessToken String?
+    metaRefreshToken String?
+    benchmarks Benchmark[]
+    adAccounts AdAccount[]
 }
 
 model VerificationToken {
