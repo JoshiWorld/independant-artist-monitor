@@ -1,8 +1,23 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
-
+// import EmailProvider from "next-auth/providers/nodemailer";
+// import FacebookProvider from "next-auth/providers/facebook";
+import GoogleProvider from "next-auth/providers/google";
 import { db } from "@/server/db";
+import { env } from "@/env";
+
+
+/*
+he signature '(config: NodemailerUserConfig): NodemailerConfig' of 'EmailProvider' is deprecated.ts(6387)
+email.d.ts(5, 4): The declaration was marked as deprecated here.
+(alias) EmailProvider(config: NodemailerUserConfig): NodemailerConfig
+import EmailProvider
+@deprecated
+Import this provider from the providers/nodemailer submodule instead of providers/email.
+
+To log in with nodemailer, change signIn("email") to signIn("nodemailer")
+*/
+
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -32,7 +47,28 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [
-    DiscordProvider,
+    // EmailProvider({
+    //   server: {
+    //     host: String(env.EMAIL_SERVER_HOST),
+    //     port: Number(env.EMAIL_SERVER_PORT),
+    //     auth: {
+    //       user: String(env.EMAIL_SERVER_USER),
+    //       pass: String(env.EMAIL_SERVER_PASSWORD),
+    //     },
+    //   },
+    //   from: `SmartSavvy <${process.env.EMAIL_FROM}>`,
+    //   async generateVerificationToken() {
+    //     return "ABCDEF";
+    //   }
+    // }),
+    // FacebookProvider({
+    //   clientId: String(env.FACEBOOK_CLIENT_ID),
+    //   clientSecret: String(env.FACEBOOK_CLIENT_SECRET),
+    // })
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET
+    })
     /**
      * ...add more providers here.
      *
@@ -43,6 +79,7 @@ export const authConfig = {
      * @see https://next-auth.js.org/providers/github
      */
   ],
+  secret: env.AUTH_SECRET,
   adapter: PrismaAdapter(db),
   callbacks: {
     session: ({ session, user }) => ({

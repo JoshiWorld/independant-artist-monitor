@@ -6,30 +6,31 @@ generator client {
 }
 
 datasource db {
-    provider = "postgresql"
+    provider  = "postgresql"
     // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
     // Further reading:
     // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
     // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_DATABASE_URL")
 }
 
-model Benchmark {
-    id        String @id @default(cuid())
-    metric    String // "ctr", "cpc", "roas"
-    greenMax  Float // z.B. 0.50
-    yellowMax Float // z.B. 0.60
-
-    userId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Customer {
+    id        String      @id @default(cuid())
+    name      String
+    greenMax  Float? // z.B. 0.50
+    yellowMax Float? // z.B. 0.60
+    accounts  AdAccount[]
 }
 
 model AdAccount {
-    id        String     @id
-    name      String
-    user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId    String
-    campaigns Campaign[]
+    id         String     @id
+    name       String
+    user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId     String
+    campaigns  Campaign[]
+    Customer   Customer?  @relation(fields: [customerId], references: [id])
+    customerId String?
 }
 
 model Campaign {
@@ -37,6 +38,8 @@ model Campaign {
     name      String
     account   AdAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
     accountId String
+    greenMax  Float? // z.B. 0.50
+    yellowMax Float? // z.B. 0.60
     metrics   DailyMetric[]
 }
 
@@ -52,6 +55,8 @@ model DailyMetric {
     cpc         Float
     clicks      Int
     convPrice   Float
+
+    @@unique([campaignId, date], name: "campaignId_date")
 }
 
 // Necessary for Next auth
@@ -91,10 +96,11 @@ model User {
     accounts      Account[]
     sessions      Session[]
 
-    metaAccessToken String?
+    metaAccessToken  String?
     metaRefreshToken String?
-    benchmarks Benchmark[]
-    adAccounts AdAccount[]
+    greenMax         Float       @default(0.5) // z.B. 0.50
+    yellowMax        Float       @default(0.59) // z.B. 0.60
+    adAccounts       AdAccount[]
 }
 
 model VerificationToken {

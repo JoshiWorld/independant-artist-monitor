@@ -131,3 +131,32 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+export const metaProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(async ({ ctx, next }) => {
+    if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+    const user = await ctx.db.user.findUnique({
+      where: {
+        id: ctx.session.user.id
+      },
+      select: {
+        metaAccessToken: true,
+      }
+    });
+    if (!user?.metaAccessToken) throw new TRPCError({ code: "UNAUTHORIZED", message: "Meta-AccessToken wurde nicht gefunden" });
+
+    return next({
+      ctx: {
+        // infers the `session` as non-nullable
+        session: {
+          ...ctx.session,
+          user: {
+            ...ctx.session.user,
+            metaAccessToken: user.metaAccessToken,
+          }
+        },
+      },
+    });
+  });

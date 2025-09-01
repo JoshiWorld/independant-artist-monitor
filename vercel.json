@@ -1,0 +1,27 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/sync",
+            "schedule": "0 6 * * *"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Forwarded-For",
+                    "value": "true"
+                },
+                {
+                    "key": "X-Real-IP",
+                    "value": "true"
+                },
+                {
+                    "key": "X-Forwarded-Proto",
+                    "value": "true"
+                }
+            ]
+        }
+    ]
+}
