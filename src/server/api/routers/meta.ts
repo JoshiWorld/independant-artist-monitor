@@ -12,7 +12,7 @@ export const metaRouter = createTRPCRouter({
     getCampaigns: metaProcedure
         .input(z.object({ accountId: z.string() }))
         .query(async ({ ctx, input }) => {
-            return fetchMeta(`/${input.accountId}/campaigns?fields=id,name,status`, ctx.session.user.metaAccessToken) as Promise<Campaign>;
+            return fetchMeta(`/${input.accountId}/campaigns?fields=id,name,status,created_time`, ctx.session.user.metaAccessToken) as Promise<Campaign>;
         }),
 
     getCampaignInsights: metaProcedure
@@ -38,27 +38,140 @@ export const metaRouter = createTRPCRouter({
 
     /* SYNC META DATA START */
 
+    syncInsightsHelper: metaProcedure.mutation(({ ctx }) => {
+        return ctx.db.campaign.findMany({
+            where: {
+                account: {
+                    user: {
+                        id: ctx.session.user.id
+                    }
+                }
+            },
+            select: {
+                id: true,
+            }
+        });
+    }),
+
+    syncCampaignsHelper: metaProcedure.mutation(({ ctx }) => {
+        return ctx.db.adAccount.findMany({
+            where: {
+                user: {
+                    id: ctx.session.user.id
+                }
+            },
+            select: {
+                id: true,
+            }
+        });
+    }),
+
     syncCampaignInsights: metaProcedure
         .input(
             z.object({
-                campaignId: z.string(),
-                since: z.string(), // YYYY-MM-DD
-                until: z.string(), // YYYY-MM-DD
+                campaignId: z.string().optional(),
+                since: z.string().optional(), // YYYY-MM-DD
+                until: z.string().optional(), // YYYY-MM-DD
+                lifetime: z.boolean().optional(), // If true, sync all data from the beginning
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const data = await fetchMeta(
-                `/${input.campaignId}/insights?fields=impressions,clicks,spend,ctr,cpc,actions&time_range[since]=${input.since}&time_range[until]=${input.until}&time_increment=1`,
-                ctx.session.user.metaAccessToken
-            ) as CampaignInsights;
+            if (!input.campaignId) {
+                const campaigns = await ctx.db.campaign.findMany({
+                    where: {
+                        account: {
+                            user: {
+                                id: ctx.session.user.id
+                            }
+                        }
+                    },
+                    select: {
+                        id: true,
+                    }
+                });
+
+                for (const campaign of campaigns) {
+                    let query = `/${campaign.id}/insights?fields=impressions,clicks,spend,ctr,cpc,actions&time_increment=1`;
+
+                    if (input.lifetime) {
+                        query += `&date_preset=maximum`;
+                    } else if (input.since && input.until) {
+                        query += `&time_range[since]=${input.since}&time_range[until]=${input.until}`;
+                    } else {
+                        query += `&date_preset=yesterday`; // fallback
+                    }
+
+                    const data = (await fetchMeta(query, ctx.session.user.metaAccessToken)) as CampaignInsights;
+
+                    for (const dataDay of data.data) {
+                        const rawValue = dataDay.actions?.find(
+                            (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                        )?.value;
+                        const conversions = Number(rawValue);
+                        const safeConversions = isNaN(conversions) ? 0 : conversions;
+
+                        const convPrice =
+                            safeConversions > 0 ? Number((parseFloat(dataDay.spend) / safeConversions).toFixed(2)) : 0;
+
+                        await ctx.db.dailyMetric.upsert({
+                            where: {
+                                // Composite Key: campaignId + date
+                                campaignId_date: {
+                                    campaignId: campaign.id,
+                                    date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
+                                },
+                            },
+                            update: {
+                                conversions: safeConversions,
+                                spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                                impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                                ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                                cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                                clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                                convPrice: isNaN(convPrice) ? 0 : convPrice,
+                            },
+                            create: {
+                                campaign: {
+                                    connect: {
+                                        id: campaign.id
+                                    }
+                                },
+                                date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
+                                conversions: safeConversions,
+                                spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                                impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                                ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                                cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                                clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                                convPrice: isNaN(convPrice) ? 0 : convPrice,
+                            },
+                        });
+                    }
+                }
+                return { success: true, count: campaigns.length };
+            }
+
+            let query = `/${input.campaignId}/insights?fields=impressions,clicks,spend,ctr,cpc,actions&time_increment=1`;
+
+            if (input.lifetime) {
+                query += `&date_preset=maximum`;
+            } else if (input.since && input.until) {
+                query += `&time_range[since]=${input.since}&time_range[until]=${input.until}`;
+            } else {
+                query += `&date_preset=yesterday`; // fallback
+            }
+
+            const data = (await fetchMeta(query, ctx.session.user.metaAccessToken)) as CampaignInsights;
 
             for (const dataDay of data.data) {
-                const conversions =
-                    Number(dataDay.actions?.find((action) => action.action_type === "offsite_conversion.fb_pixel_custom")
-                        ?.value) ?? 0;
+                const rawValue = dataDay.actions?.find(
+                    (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                )?.value;
+                const conversions = Number(rawValue);
+                const safeConversions = isNaN(conversions) ? 0 : conversions;
 
                 const convPrice =
-                    conversions > 0 ? Number((parseFloat(dataDay.spend) / conversions).toFixed(2)) : 0;
+                    safeConversions > 0 ? Number((parseFloat(dataDay.spend) / safeConversions).toFixed(2)) : 0;
 
                 await ctx.db.dailyMetric.upsert({
                     where: {
@@ -69,24 +182,28 @@ export const metaRouter = createTRPCRouter({
                         },
                     },
                     update: {
-                        conversions: conversions,
-                        spend: parseFloat(dataDay.spend),
-                        impressions: parseInt(dataDay.impressions),
-                        ctr: parseFloat(dataDay.ctr),
-                        cpc: parseFloat(dataDay.cpc),
-                        clicks: parseInt(dataDay.clicks),
-                        convPrice,
+                        conversions: safeConversions,
+                        spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                        impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                        ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                        cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                        clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                        convPrice: isNaN(convPrice) ? 0 : convPrice,
                     },
                     create: {
-                        campaignId: input.campaignId,
+                        campaign: {
+                            connect: {
+                                id: input.campaignId
+                            }
+                        },
                         date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
-                        conversions: conversions,
-                        spend: parseFloat(dataDay.spend),
-                        impressions: parseInt(dataDay.impressions),
-                        ctr: parseFloat(dataDay.ctr),
-                        cpc: parseFloat(dataDay.cpc),
-                        clicks: parseInt(dataDay.clicks),
-                        convPrice,
+                        conversions: safeConversions,
+                        spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                        impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                        ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                        cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                        clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                        convPrice: isNaN(convPrice) ? 0 : convPrice,
                     },
                 });
             }
@@ -110,12 +227,14 @@ export const metaRouter = createTRPCRouter({
             ) as CampaignInsights;
 
             for (const dataDay of data.data) {
-                const conversions =
-                    Number(dataDay.actions?.find((action) => action.action_type === "offsite_conversion.fb_pixel_custom")
-                        ?.value) ?? 0;
+                const rawValue = dataDay.actions?.find(
+                    (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                )?.value;
+                const conversions = Number(rawValue);
+                const safeConversions = isNaN(conversions) ? 0 : conversions;
 
                 const convPrice =
-                    conversions > 0 ? Number((parseFloat(dataDay.spend) / conversions).toFixed(2)) : 0;
+                    safeConversions > 0 ? Number((parseFloat(dataDay.spend) / safeConversions).toFixed(2)) : 0;
 
                 await ctx.db.dailyMetric.upsert({
                     where: {
@@ -126,24 +245,28 @@ export const metaRouter = createTRPCRouter({
                         },
                     },
                     update: {
-                        conversions: conversions,
-                        spend: parseFloat(dataDay.spend),
-                        impressions: parseInt(dataDay.impressions),
-                        ctr: parseFloat(dataDay.ctr),
-                        cpc: parseFloat(dataDay.cpc),
-                        clicks: parseInt(dataDay.clicks),
-                        convPrice,
+                        conversions: safeConversions,
+                        spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                        impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                        ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                        cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                        clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                        convPrice: isNaN(convPrice) ? 0 : convPrice,
                     },
                     create: {
-                        campaignId: input.campaignId,
+                        campaign: {
+                            connect: {
+                                id: input.campaignId
+                            }
+                        },
                         date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
-                        conversions: conversions,
-                        spend: parseFloat(dataDay.spend),
-                        impressions: parseInt(dataDay.impressions),
-                        ctr: parseFloat(dataDay.ctr),
-                        cpc: parseFloat(dataDay.cpc),
-                        clicks: parseInt(dataDay.clicks),
-                        convPrice,
+                        conversions: safeConversions,
+                        spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                        impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                        ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                        cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                        clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                        convPrice: isNaN(convPrice) ? 0 : convPrice,
                     },
                 });
             }
@@ -203,43 +326,34 @@ export const metaRouter = createTRPCRouter({
         return { success: true, count: data.data.length }
     }),
 
-    syncCampaigns: metaProcedure.mutation(async ({ ctx }) => {
-        const accounts = await ctx.db.adAccount.findMany({
-            where: {
-                user: {
-                    id: ctx.session.user.id
-                }
-            },
-            select: {
-                id: true,
-            }
-        });
+    syncCampaigns: metaProcedure.input(z.object({ adAccountId: z.string() })).mutation(async ({ ctx, input }) => {
+        const data = await fetchMeta(`/${input.adAccountId}/campaigns?fields=id,name,status,created_time`, ctx.session.user.metaAccessToken) as Campaign;
 
-        for (const account of accounts) {
-            const data = await fetchMeta(`/${account.id}/campaigns?fields=id,name,status`, ctx.session.user.metaAccessToken) as Campaign;
-
-            for (const campaign of data.data) {
-                await ctx.db.campaign.upsert({
-                    where: {
-                        id: campaign.id
-                    },
-                    update: {
-                        name: campaign.name,
-                    },
-                    create: {
-                        id: campaign.id,
-                        name: campaign.name,
-                        account: {
-                            connect: {
-                                id: account.id
-                            }
+        for (const campaign of data.data) {
+            await ctx.db.campaign.upsert({
+                where: {
+                    id: campaign.id
+                },
+                update: {
+                    name: campaign.name,
+                    status: campaign.status,
+                    createdAt: new Date(campaign.created_time),
+                },
+                create: {
+                    id: campaign.id,
+                    name: campaign.name,
+                    status: campaign.status,
+                    createdAt: new Date(campaign.created_time),
+                    account: {
+                        connect: {
+                            id: input.adAccountId
                         }
                     }
-                })
-            }
+                }
+            })
         }
 
-        return { success: true, count: accounts.length };
+        return { success: true, count: data.data.length };
     }),
 
     syncCampaignsCron: publicProcedure.input(z.object({ accessToken: z.string(), userId: z.string() })).mutation(async ({ ctx, input }) => {
@@ -255,7 +369,7 @@ export const metaRouter = createTRPCRouter({
         });
 
         for (const account of accounts) {
-            const data = await fetchMeta(`/${account.id}/campaigns?fields=id,name,status`, input.accessToken) as Campaign;
+            const data = await fetchMeta(`/${account.id}/campaigns?fields=id,name,status,created_time`, input.accessToken) as Campaign;
 
             for (const campaign of data.data) {
                 await ctx.db.campaign.upsert({
@@ -264,10 +378,14 @@ export const metaRouter = createTRPCRouter({
                     },
                     update: {
                         name: campaign.name,
+                        status: campaign.status,
+                        createdAt: new Date(campaign.created_time),
                     },
                     create: {
                         id: campaign.id,
                         name: campaign.name,
+                        status: campaign.status,
+                        createdAt: new Date(campaign.created_time),
                         account: {
                             connect: {
                                 id: account.id
@@ -286,6 +404,6 @@ export const metaRouter = createTRPCRouter({
 
 async function fetchMeta(endpoint: string, access_token: string) {
     const res = await fetch(`${META_BASE}${endpoint}&access_token=${access_token}`);
-    if (!res.ok) throw new Error("Meta API error");
+    if (!res.ok) throw new Error(`Meta API responded with ${res.status}`);
     return res.json() as Promise<AdAccount | Campaign | CampaignInsights>;
 }

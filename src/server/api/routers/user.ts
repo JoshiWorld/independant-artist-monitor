@@ -1,0 +1,290 @@
+import { env } from "@/env";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { z } from "zod";
+import type { TokenResponse } from "@/types/meta";
+
+export const userRouter = createTRPCRouter({
+    getInfoForDashboard: protectedProcedure.query(({ ctx }) => {
+        return ctx.db.user.findUnique({
+            where: {
+                id: ctx.session.user.id,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+            }
+        });
+    }),
+
+    getAdAccounts: protectedProcedure.input(z.object({ name: z.string().optional() })).query(async ({ ctx, input }) => {
+        if (input.name) {
+            return ctx.db.adAccount.findMany({
+                where: {
+                    user: {
+                        id: ctx.session.user.id,
+                    },
+                    name: {
+                        contains: input.name,
+                        mode: "insensitive",
+                    }
+                },
+                select: {
+                    id: true,
+                    name: true,
+                }
+            });
+        }
+
+        return ctx.db.adAccount.findMany({
+            where: {
+                user: {
+                    id: ctx.session.user.id,
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+            }
+        });
+    }),
+
+    getDashboardStatsCards: protectedProcedure.query(async ({ ctx }) => {
+        const user = await ctx.db.user.findUnique({
+            where: {
+                id: ctx.session.user.id
+            },
+            select: {
+                yellowMax: true,
+                greenMax: true,
+            }
+        });
+
+        const campaigns = await ctx.db.campaign.findMany({
+            where: {
+                account: {
+                    user: {
+                        id: ctx.session.user.id,
+                    }
+                },
+                status: "ACTIVE"
+            },
+            select: {
+                id: true,
+                greenMax: true,
+                yellowMax: true,
+                name: true,
+                status: true,
+                metrics: {
+                    where: {
+                        date: {
+                            gte: new Date(new Date().setDate(new Date().getDate() - 3)) // last 3 days
+                        }
+                    },
+                    select: {
+                        convPrice: true,
+                    }
+                }
+            }
+        });
+
+        let warningCount = 0;
+        let criticalCount = 0;
+
+        for (const campaign of campaigns) {
+            let greenMax = campaign.greenMax;
+            let yellowMax = campaign.yellowMax;
+
+            greenMax ??= user?.greenMax ?? 0.5;
+            yellowMax ??= user?.yellowMax ?? 0.59;
+
+            const avgConvPrice =
+                campaign.metrics.reduce((sum, m) => sum + m.convPrice, 0) /
+                campaign.metrics.length;
+
+            if (avgConvPrice >= greenMax && avgConvPrice <= yellowMax) {
+                warningCount++;
+            } else if (avgConvPrice > yellowMax) {
+                criticalCount++;
+            }
+        }
+
+        return {
+            activeCampaigns: campaigns.length,
+            warningCampaigns: warningCount,
+            criticalCampaigns: criticalCount,
+        }
+    }),
+
+    getDashboardStatsChart: protectedProcedure.query(async ({ ctx }) => {
+        const campaigns = await ctx.db.campaign.findMany({
+            where: {
+                account: {
+                    user: {
+                        id: ctx.session.user.id,
+                    }
+                },
+                status: "ACTIVE"
+            },
+            select: {
+                metrics: {
+                    where: {
+                        date: {
+                            gte: new Date(new Date().setDate(new Date().getDate() - 14)) // last 14 days
+                        }
+                    },
+                    select: {
+                        date: true,
+                        convPrice: true,
+                    }
+                }
+            }
+        });
+
+        const stats: { date: string; convPrice: number }[] = [];
+        const dateMap: Record<string, number> = {};
+        const today = new Date();
+        for (let i = 13; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateString = date.toISOString().split('T')[0];
+            stats.push({ date: dateString!, convPrice: 0 });
+            dateMap[dateString!] = stats.length - 1;
+        }
+
+        for (const campaign of campaigns) {
+            for (const metric of campaign.metrics) {
+                const dateString = metric.date.toISOString().split('T')[0];
+                if (dateMap[dateString!] !== undefined) {
+                    stats[dateMap[dateString!]!]!.convPrice += metric.convPrice;
+                }
+            }
+        }
+
+        return stats;
+    }),
+
+    getDashboardCampaigns: protectedProcedure.query(async ({ ctx }) => {
+        const campaings = await ctx.db.campaign.findMany({
+            where: {
+                account: {
+                    user: {
+                        id: ctx.session.user.id,
+                    }
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                greenMax: true,
+                yellowMax: true,
+                account: {
+                    select: {
+                        id: true,
+                        name: true,
+                        user: {
+                            select: {
+                                greenMax: true,
+                                yellowMax: true,
+                            }
+                        }
+                    }
+                },
+                metrics: {
+                    select: {
+                        convPrice: true,
+                        clicks: true,
+                        impressions: true,
+                        cpc: true,
+                        ctr: true,
+                        spend: true,
+                        conversions: true,
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc",
+            }
+        });
+
+        return campaings.map((c) => {
+            const avgConvPrice =
+                c.metrics.length > 0
+                    ? c.metrics.reduce((sum, m) => sum + m.convPrice, 0) / c.metrics.length
+                    : null;
+            const avgCpc = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.cpc, 0) / c.metrics.length : null;
+            const totalClicks = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.clicks, 0) : null;
+            const totalImpressions = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.impressions, 0) : null;
+            const totalSpend = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.spend, 0) : null;
+            const totalConversions = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.conversions, 0) : null;
+            // const ctr = totalImpressions && totalClicks ? (totalClicks / totalImpressions) * 100 : null;
+            const avgCtr = c.metrics.length > 0 ? c.metrics.reduce((sum, m) => sum + m.ctr, 0) / c.metrics.length : null;
+
+            const greenMax = c.greenMax ?? c.account.user.greenMax ?? 0.5;
+            const yellowMax = c.yellowMax ?? c.account.user.yellowMax ?? 0.59;
+
+            const status = avgConvPrice !== null ? (avgConvPrice < greenMax ? "GREEN" : avgConvPrice <= yellowMax ? "YELLOW" : "RED") : "GRAY";
+            
+            return {
+                id: c.id,
+                accId: c.account.id,
+                name: c.name,
+                status: c.status,
+                accountName: c.account.name,
+                convPrice: avgConvPrice,
+                cpc: avgCpc,
+                clicks: totalClicks,
+                impressions: totalImpressions,
+                ctr: avgCtr,
+                spend: totalSpend,
+                conversions: totalConversions,
+                performanceStatus: status,
+                greenMax: c.greenMax,
+                yellowMax: c.yellowMax,
+            };
+        });
+    }),
+
+    setMetaAccessToken: protectedProcedure.input(z.object({ code: z.string() })).mutation(async ({ ctx, input }) => {
+        const redirect_uri = `${env.NEXTAUTH_URL}/dashboard/meta/callback`;
+
+        const tokenResponse = await fetch(`https://graph.facebook.com/v21.0/oauth/access_token?client_id=${env.FACEBOOK_CLIENT_ID}&redirect_uri=${redirect_uri}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&code=${input.code}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            next: { revalidate: 0 }
+        });
+
+        if (!tokenResponse.ok) {
+            console.error("Fehler beim Abrufen des Access Tokens:", tokenResponse.statusText);
+            throw new Error(`Fehler beim Abrufen des Access Tokens: ${tokenResponse.statusText}`);
+        }
+
+        const tokenData = await tokenResponse.json() as TokenResponse;
+        const longLivedAccessTokenRes = await fetch(
+            `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.FACEBOOK_CLIENT_ID}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${tokenData.access_token}`,
+        );
+
+        if (!longLivedAccessTokenRes.ok) {
+            console.error("Fehler beim Abrufen des Long Lived Tokens:", longLivedAccessTokenRes.statusText);
+            throw new Error(`Fehler beim Abrufen des Long Lived Tokens: ${longLivedAccessTokenRes.statusText}`);
+        }
+
+        const longLivedToken = await longLivedAccessTokenRes.json() as TokenResponse;
+
+        const updatedUser = await ctx.db.user.update({
+            where: {
+                id: ctx.session.user.id
+            },
+            data: {
+                metaAccessToken: longLivedToken.access_token,
+                metaTokenExpiry: new Date(Date.now() + longLivedToken.expires_in * 1000), // expires_in is in seconds
+            }
+        });
+
+        return { success: true, user: updatedUser };
+    })
+})

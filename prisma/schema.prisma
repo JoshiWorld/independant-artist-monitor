@@ -34,10 +34,12 @@ model AdAccount {
 }
 
 model Campaign {
-    id        String        @id
+    id        String         @id
     name      String
-    account   AdAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    account   AdAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
     accountId String
+    createdAt DateTime       @default(now())
+    status    CampaignStatus @default(ACTIVE)
     greenMax  Float? // z.B. 0.50
     yellowMax Float? // z.B. 0.60
     metrics   DailyMetric[]
@@ -96,11 +98,11 @@ model User {
     accounts      Account[]
     sessions      Session[]
 
-    metaAccessToken  String?
-    metaRefreshToken String?
-    greenMax         Float       @default(0.5) // z.B. 0.50
-    yellowMax        Float       @default(0.59) // z.B. 0.60
-    adAccounts       AdAccount[]
+    metaAccessToken String?
+    metaTokenExpiry DateTime?
+    greenMax        Float       @default(0.5) // z.B. 0.50
+    yellowMax       Float       @default(0.59) // z.B. 0.60
+    adAccounts      AdAccount[]
 }
 
 model VerificationToken {
@@ -109,4 +111,11 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+enum CampaignStatus {
+    ACTIVE
+    PAUSED
+    DELETED
+    ARCHIVED
 }
