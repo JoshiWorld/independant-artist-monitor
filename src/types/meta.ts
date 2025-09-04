@@ -2,12 +2,20 @@ import type { CampaignStatus } from "@prisma/client";
 
 export type AdAccount = {
     data: { id: string; name: string }[];
-    paging: { cursors: { before: string; after: string } };
+    paging: {
+        cursors: { before: string; after: string };
+        next?: string;
+        previous?: string;
+    };
 }
 
 export type Campaign = {
     data: { id: string; name: string; status: CampaignStatus; created_time: Date }[];
-    paging: { cursors: { before: string; after: string } };
+    paging: {
+        cursors: { before: string; after: string };
+        next?: string;
+        previous?: string;
+    };
 }
 
 export type CampaignInsights = {
@@ -21,7 +29,11 @@ export type CampaignInsights = {
         date_start?: string;
         date_stop?: string;
     }[];
-    paging: { cursors: { before: string; after: string } };
+    paging: {
+        cursors: { before: string; after: string };
+        next?: string;
+        previous?: string;
+    };
 }
 
 export type TokenResponse = {
