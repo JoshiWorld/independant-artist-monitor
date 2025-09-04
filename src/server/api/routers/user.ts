@@ -296,6 +296,8 @@ export const userRouter = createTRPCRouter({
             select: {
                 metaAccessToken: true,
                 metaTokenExpiry: true,
+                greenMax: true,
+                yellowMax: true,
             }
         });
     }),
@@ -311,7 +313,7 @@ export const userRouter = createTRPCRouter({
         });
     }),
 
-    removeMetaAccess: protectedProcedure.query(({ ctx }) => {
+    removeMetaAccess: protectedProcedure.mutation(({ ctx }) => {
         return ctx.db.user.update({
             where: {
                 id: ctx.session.user.id
@@ -319,6 +321,28 @@ export const userRouter = createTRPCRouter({
             data: {
                 metaAccessToken: null,
                 metaTokenExpiry: null
+            }
+        });
+    }),
+
+    removeMetaData: protectedProcedure.mutation(({ ctx }) => {
+        return ctx.db.adAccount.deleteMany({
+            where: {
+                user: {
+                    id: ctx.session.user.id
+                }
+            },
+        });
+    }),
+
+    update: protectedProcedure.input(z.object({ greenMax: z.number(), yellowMax: z.number() })).mutation(({ ctx, input }) => {
+        return ctx.db.user.update({
+            where: {
+                id: ctx.session.user.id
+            },
+            data: {
+                greenMax: input.greenMax,
+                yellowMax: input.yellowMax
             }
         });
     })
