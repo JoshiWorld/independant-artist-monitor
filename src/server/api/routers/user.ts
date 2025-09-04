@@ -309,5 +309,17 @@ export const userRouter = createTRPCRouter({
                 metaTokenExpiry: true,
             }
         });
+    }),
+
+    removeMetaAccess: protectedProcedure.query(({ ctx }) => {
+        return ctx.db.user.update({
+            where: {
+                id: ctx.session.user.id
+            },
+            data: {
+                metaAccessToken: null,
+                metaTokenExpiry: null
+            }
+        });
     })
 })

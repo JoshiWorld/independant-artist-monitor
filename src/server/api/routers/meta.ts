@@ -165,7 +165,8 @@ export const metaRouter = createTRPCRouter({
 
             for (const dataDay of data.data) {
                 const rawValue = dataDay.actions?.find(
-                    (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                    // (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                    (action) => action.action_type.includes("offsite_conversion.fb_pixel")
                 )?.value;
                 const conversions = Number(rawValue);
                 const safeConversions = isNaN(conversions) ? 0 : conversions;
@@ -228,7 +229,7 @@ export const metaRouter = createTRPCRouter({
 
             for (const dataDay of data.data) {
                 const rawValue = dataDay.actions?.find(
-                    (action) => action.action_type === "offsite_conversion.fb_pixel_custom"
+                    (action) => action.action_type.includes("offsite_conversion.fb_pixel")
                 )?.value;
                 const conversions = Number(rawValue);
                 const safeConversions = isNaN(conversions) ? 0 : conversions;

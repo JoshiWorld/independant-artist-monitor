@@ -99,7 +99,7 @@ export const authConfig = {
         }
       });
 
-      // if(!users.find((u) => u.email === user.email)) return false; // Aktivieren für Login-Sperre
+      if(!users.find((u) => u.email === user.email)) return false; // Aktivieren für Login-Sperre
       return true;
     }
   },
