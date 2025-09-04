@@ -175,7 +175,7 @@ export function DashboardChart() {
                         />
                         <Area
                             dataKey="convPrice"
-                            type="natural"
+                            type="monotoneX"
                             fill="url(#fillConvPrice)"
                             stroke="var(--color-convPrice)"
                             stackId="a"

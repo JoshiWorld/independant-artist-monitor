@@ -118,7 +118,7 @@ export function CampaignChart({ accId, campaignId, dateRange }: { accId: string;
                         />
                         <Area
                             dataKey="convPrice"
-                            type="natural"
+                            type="monotoneX"
                             fill="url(#fillConvPrice)"
                             stroke="var(--color-convPrice)"
                             stackId="a"
