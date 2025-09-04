@@ -194,11 +194,6 @@ export const userRouter = createTRPCRouter({
                     }
                 },
                 metrics: {
-                    where: {
-                        date: {
-                            gte: new Date(new Date().setDate(new Date().getDate() - 3)) // last 3 days
-                        }
-                    },
                     select: {
                         convPrice: true,
                         clicks: true,
