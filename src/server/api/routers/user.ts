@@ -2,6 +2,7 @@ import { env } from "@/env";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { z } from "zod";
 import type { TokenResponse } from "@/types/meta";
+import { subDays } from "date-fns";
 
 export const userRouter = createTRPCRouter({
     getInfoForDashboard: protectedProcedure.query(({ ctx }) => {
@@ -206,6 +207,7 @@ export const userRouter = createTRPCRouter({
                         ctr: true,
                         spend: true,
                         conversions: true,
+                        date: true,
                     }
                 }
             },
@@ -230,7 +232,9 @@ export const userRouter = createTRPCRouter({
             const greenMax = c.greenMax ?? c.account.user.greenMax ?? 0.5;
             const yellowMax = c.yellowMax ?? c.account.user.yellowMax ?? 0.59;
 
-            const status = avgConvPrice !== null ? (avgConvPrice < greenMax ? "GREEN" : avgConvPrice <= yellowMax ? "YELLOW" : "RED") : "GRAY";
+            const avgConvPriceLast3Days = c.metrics.length > 0 ? c.metrics.filter((m) => m.date >= subDays(new Date(), 3)).reduce((sum, m) => sum + m.convPrice, 0) / c.metrics.length : null;
+
+            const status = avgConvPriceLast3Days !== null ? (avgConvPriceLast3Days < greenMax ? "GREEN" : avgConvPriceLast3Days <= yellowMax ? "YELLOW" : "RED") : "GRAY";
             
             return {
                 id: c.id,
