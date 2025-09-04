@@ -143,24 +143,31 @@ export const userRouter = createTRPCRouter({
             }
         });
 
-        const stats: { date: string; convPrice: number }[] = [];
+        type Stat = { date: string; sum: number; count: number; convPrice: number };
+
+        const stats: Stat[] = [];
         const dateMap: Record<string, number> = {};
-        const today = new Date();
         for (let i = 13; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const dateString = date.toISOString().split('T')[0];
-            stats.push({ date: dateString!, convPrice: 0 });
-            dateMap[dateString!] = stats.length - 1;
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateString = date.toISOString().split("T")[0]!;
+            stats.push({ date: dateString, sum: 0, count: 0, convPrice: 0 });
+            dateMap[dateString] = stats.length - 1;
         }
 
         for (const campaign of campaigns) {
             for (const metric of campaign.metrics) {
-                const dateString = metric.date.toISOString().split('T')[0];
-                if (dateMap[dateString!] !== undefined) {
-                    stats[dateMap[dateString!]!]!.convPrice += metric.convPrice;
+                const dateString = metric.date.toISOString().split("T")[0]!;
+                const idx = dateMap[dateString];
+                if (idx !== undefined) {
+                    stats[idx]!.sum += metric.convPrice ?? 0;
+                    stats[idx]!.count += 1;
                 }
             }
+        }
+
+        for (const s of stats) {
+            s.convPrice = s.count > 0 ? s.sum / s.count : 0;
         }
 
         return stats;
@@ -229,9 +236,9 @@ export const userRouter = createTRPCRouter({
 
             const avgConvPriceLast3Days = c.metrics.length > 0 ? c.metrics.filter((m) => m.date >= subDays(new Date(), 3)).reduce((sum, m) => sum + m.convPrice, 0) / c.metrics.filter((m) => m.date >= subDays(new Date(), 3)).length : null;
 
-            const status = avgConvPriceLast3Days !== null ? (avgConvPriceLast3Days < greenMax ? "GREEN" : avgConvPriceLast3Days <= yellowMax ? "YELLOW" : "RED") : "GRAY";
-            
-            return {
+            const status = avgConvPriceLast3Days !== null && avgConvPriceLast3Days > 0 ? (avgConvPriceLast3Days < greenMax ? "GREEN" : avgConvPriceLast3Days <= yellowMax ? "YELLOW" : "RED") : "GRAY";
+
+            const dataToReturn = {
                 id: c.id,
                 accId: c.account.id,
                 name: c.name,
@@ -248,6 +255,8 @@ export const userRouter = createTRPCRouter({
                 greenMax: c.greenMax,
                 yellowMax: c.yellowMax,
             };
+            
+            return dataToReturn;
         });
     }),
 

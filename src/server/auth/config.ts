@@ -90,6 +90,7 @@ export const authConfig = {
       user: {
         ...session.user,
         id: user.id,
+        // id: process.env.TEST_USER_ID,
       },
     }),
     async signIn({ user }) {
