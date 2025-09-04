@@ -14,7 +14,7 @@ export default async function RootDashboardLayout({
     const session = await auth();
 
     if(!session?.user) {
-        return redirect("/api/auth/signin");
+        return redirect("/login");
     }
 
     void api.user.getInfoForDashboard.prefetch();

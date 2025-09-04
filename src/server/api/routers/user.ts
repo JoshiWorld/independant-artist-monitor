@@ -286,5 +286,28 @@ export const userRouter = createTRPCRouter({
         });
 
         return { success: true, user: updatedUser };
+    }),
+
+    getSettings: protectedProcedure.query(({ ctx }) => {
+        return ctx.db.user.findUnique({
+            where: {
+                id: ctx.session.user.id
+            },
+            select: {
+                metaAccessToken: true,
+                metaTokenExpiry: true,
+            }
+        });
+    }),
+
+    getMetaTokenExpiry: protectedProcedure.query(({ ctx }) => {
+        return ctx.db.user.findUnique({
+            where: {
+                id: ctx.session.user.id
+            },
+            select: {
+                metaTokenExpiry: true,
+            }
+        });
     })
 })

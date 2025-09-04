@@ -81,6 +81,9 @@ export const authConfig = {
   ],
   secret: env.AUTH_SECRET,
   adapter: PrismaAdapter(db),
+  pages: {
+    signIn: "/login"
+  },
   callbacks: {
     session: ({ session, user }) => ({
       ...session,
@@ -89,5 +92,15 @@ export const authConfig = {
         id: user.id,
       },
     }),
+    async signIn({ user }) {
+      const users = await db.user.findMany({
+        select: {
+          email: true
+        }
+      });
+
+      // if(!users.find((u) => u.email === user.email)) return false; // Aktivieren für Login-Sperre
+      return true;
+    }
   },
 } satisfies NextAuthConfig;
