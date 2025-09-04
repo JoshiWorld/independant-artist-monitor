@@ -67,6 +67,79 @@ export const metaRouter = createTRPCRouter({
         });
     }),
 
+    syncCampaignInsightsFull: publicProcedure
+        .input(
+            z.object({
+                campaignId: z.string(),
+                accessToken: z.string(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            let totalMetrics = 0;
+
+            try {
+                const insights = await fetchAllInsightsFull(
+                    input.campaignId,
+                    input.accessToken,
+                );
+
+                for (const dataDay of insights) {
+                    const rawValue = dataDay.actions?.find((a) =>
+                        a.action_type.includes("offsite_conversion.fb_pixel")
+                    )?.value;
+                    const conversions = Number(rawValue);
+                    const safeConversions = isNaN(conversions) ? 0 : conversions;
+
+                    const convPrice =
+                        safeConversions > 0
+                            ? Number((parseFloat(dataDay.spend) / safeConversions).toFixed(2))
+                            : 0;
+
+                    await ctx.db.dailyMetric.upsert({
+                        where: {
+                            campaignId_date: {
+                                campaignId: input.campaignId,
+                                date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
+                            },
+                        },
+                        update: {
+                            conversions: safeConversions,
+                            spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                            impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                            ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                            cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                            clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                            convPrice: isNaN(convPrice) ? 0 : convPrice,
+                        },
+                        create: {
+                            campaign: { connect: { id: input.campaignId } },
+                            date: dataDay.date_start ? new Date(dataDay.date_start) : new Date(),
+                            conversions: safeConversions,
+                            spend: isNaN(parseFloat(dataDay.spend)) ? 0 : parseFloat(dataDay.spend),
+                            impressions: isNaN(parseInt(dataDay.impressions)) ? 0 : parseInt(dataDay.impressions),
+                            ctr: isNaN(parseFloat(dataDay.ctr)) ? 0 : parseFloat(dataDay.ctr),
+                            cpc: isNaN(parseFloat(dataDay.cpc)) ? 0 : parseFloat(dataDay.cpc),
+                            clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
+                            convPrice: isNaN(convPrice) ? 0 : convPrice,
+                        },
+                    });
+                }
+
+                totalMetrics += insights.length;
+            } catch (error) {
+                if (error instanceof Error) {
+                    console.error(`Meta-Error for Sync CampaignInsights (${input.campaignId}):`, error.message);
+                    await ctx.db.error.create({
+                        data: {
+                            content: `Meta-Error for Sync CampaignInsights (${input.campaignId}): ${error.message}`,
+                        },
+                    });
+                }
+            }
+
+            return { success: true, metrics: totalMetrics };
+        }),
+
     syncCampaignInsights: metaProcedure
         .input(
             z.object({
@@ -905,6 +978,31 @@ async function fetchAllInsightsSync(
     } else {
         url += `&date_preset=yesterday`;
     }
+
+    let allData: CampaignInsights["data"] = [];
+
+    while (url) {
+        const res = (await fetchMetaCron(url, accessToken)) as CampaignInsights | MetaError;
+
+        if ("error" in res) {
+            throw new Error(res.error.message);
+        }
+
+        allData = allData.concat(res.data);
+
+        url = res.paging?.next
+            ? res.paging.next.replace("https://graph.facebook.com/v21.0", "")
+            : "";
+    }
+
+    return allData;
+}
+
+async function fetchAllInsightsFull(
+    campaignId: string,
+    accessToken: string
+): Promise<CampaignInsights["data"]> {
+    let url = `/${campaignId}/insights?fields=impressions,clicks,spend,ctr,cpc,actions,date_start&time_increment=1&limit=100&date_preset=maximum`;
 
     let allData: CampaignInsights["data"] = [];
 

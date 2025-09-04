@@ -9,6 +9,36 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ message: "UNAUTHORIZED" }, { status: 401 });
     }
 
+    // const campaigns = await db.campaign.findMany({
+    //     where: {
+    //         account: {
+    //             user: {
+    //                 id: process.env.TEST_USER_ID
+    //             }
+    //         }
+    //     },
+    //     select: {
+    //         id: true,
+    //         account: {
+    //             select: {
+    //                 user: {
+    //                     select: {
+    //                         metaAccessToken: true,
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // });
+    // for (const campaign of campaigns) {
+    //     await api.meta.syncCampaignInsightsFull({
+    //         campaignId: campaign.id,
+    //         accessToken: campaign.account.user.metaAccessToken!,
+    //     });
+    // }
+
+    // return NextResponse.json({ message: "Sync done" }, { status: 200 });
+
     try {
         const usersWithToken = await db.user.findMany({
             where: {
