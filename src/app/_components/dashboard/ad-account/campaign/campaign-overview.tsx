@@ -15,14 +15,18 @@ import { motion, AnimatePresence } from "framer-motion"
 import { CampaignChart } from "./campaign-chart";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import { IconRefresh } from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
 
 export function CampaignOverview({ accId, campaignId, initDates }: { accId: string; campaignId: string; initDates: DateRange }) {
+    const router = useRouter();
     const [dateSwitch, setDateSwitch] = useState<boolean>(true);
     const [dateRange, setDateRange] = useState<DateRange | undefined>(initDates);
 
     const initCampaignData = api.meta.syncCampaignInsights.useMutation({
         onSuccess: () => {
             toast.success("Kampagne erfolgreich neu initialisiert");
+            router.refresh();
         },
         onError: (error) => {
             toast.error("Fehler beim Initialisieren der Kampagne", { description: error.message });
@@ -32,8 +36,14 @@ export function CampaignOverview({ accId, campaignId, initDates }: { accId: stri
 
     return (
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <Button onClick={() => initCampaignData.mutate({ campaignId, lifetime: true })}>Kampagne neu initialisieren</Button>
-            <SelectDateRange dateRange={dateRange} setDateRange={setDateRange} dateSwitch={dateSwitch} setDateSwitch={setDateSwitch} />
+            <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-3 items-center">
+                <Button onClick={() => initCampaignData.mutate({ campaignId, lifetime: true })} disabled={initCampaignData.isPending}>
+                    <IconRefresh className={initCampaignData.isPending ? "animate-spin" : ""} />
+                    {initCampaignData.isPending ? "Initialisiere.." : "Kampagne neu initialisieren"}
+                </Button>
+                <SelectDateRange dateRange={dateRange} setDateRange={setDateRange} dateSwitch={dateSwitch} setDateSwitch={setDateSwitch} />
+                {/* <Button onClick={() => initCampaignData.mutate({ campaignId, lifetime: true })} disabled={initCampaignData.isPending}>Kampagne</Button> */}
+            </div>
             <CampaignCards accId={accId} campaignId={campaignId} dateRange={dateRange} />
             <CampaignCardsSecondary accId={accId} campaignId={campaignId} dateRange={dateRange} />
             <div className="px-4 lg:px-6">
