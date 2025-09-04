@@ -29,3 +29,12 @@ export type TokenResponse = {
     token_type: string;
     expires_in: number;
 }
+
+export type MetaError = {
+    error: {
+        message: string;
+        type: string;
+        code: number;
+        fbtrace_id: string;
+    }
+}

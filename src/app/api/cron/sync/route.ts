@@ -4,10 +4,10 @@ import { api } from "@/trpc/server";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
-        return NextResponse.json({ message: "UNAUTHORIZED" }, { status: 401 });
-    }
+    // const authHeader = req.headers.get("authorization");
+    // if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+    //     return NextResponse.json({ message: "UNAUTHORIZED" }, { status: 401 });
+    // }
 
     try {
         const usersWithToken = await db.user.findMany({

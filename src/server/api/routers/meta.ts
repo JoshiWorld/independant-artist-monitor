@@ -1,4 +1,4 @@
-import type { AdAccount, Campaign, CampaignInsights } from "@/types/meta";
+import type { AdAccount, Campaign, CampaignInsights, MetaError } from "@/types/meta";
 import { createTRPCRouter, metaProcedure, publicProcedure } from "../trpc";
 import { z } from "zod";
 
@@ -222,10 +222,20 @@ export const metaRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const data = await fetchMeta(
+            const data = await fetchMetaCron(
                 `/${input.campaignId}/insights?fields=impressions,clicks,spend,ctr,cpc,actions&time_range[since]=${input.since}&time_range[until]=${input.until}&time_increment=1`,
                 input.accessToken
-            ) as CampaignInsights;
+            ) as CampaignInsights | MetaError;
+
+            if (isMetaError(data)) {
+                console.error(`Meta-Error for Sync CampaignInsights (${input.campaignId}):`, data.error.message);
+                await ctx.db.error.create({
+                    data: {
+                        content: `Meta-Error for Sync CampaignInsights (${input.campaignId}): ${data.error.message}`
+                    }
+                });
+                return { success: false }
+            }
 
             for (const dataDay of data.data) {
                 const rawValue = dataDay.actions?.find(
@@ -302,7 +312,17 @@ export const metaRouter = createTRPCRouter({
     }),
 
     syncAdAccountsCron: publicProcedure.input(z.object({ accessToken: z.string(), userId: z.string() })).mutation(async ({ ctx, input }) => {
-        const data = await fetchMeta(`/me/adaccounts?fields=id,name`, input.accessToken) as AdAccount;
+        const data = await fetchMetaCron(`/me/adaccounts?fields=id,name`, input.accessToken) as AdAccount | MetaError;
+
+        if (isMetaError(data)) {
+            console.error(`Meta-Error for Sync AdAccounts:`, data.error.message);
+            await ctx.db.error.create({
+                data: {
+                    content: `Meta-Error for Sync AdAccounts: ${data.error.message}`
+                }
+            });
+            return { success: false }
+        }
 
         for (const account of data.data) {
             await ctx.db.adAccount.upsert({
@@ -370,7 +390,17 @@ export const metaRouter = createTRPCRouter({
         });
 
         for (const account of accounts) {
-            const data = await fetchMeta(`/${account.id}/campaigns?fields=id,name,status,created_time`, input.accessToken) as Campaign;
+            const data = await fetchMetaCron(`/${account.id}/campaigns?fields=id,name,status,created_time`, input.accessToken) as Campaign | MetaError;
+
+            if(isMetaError(data)) {
+                console.error(`Meta-Error for Sync AdAccount (${account.id}):`, data.error.message);
+                await ctx.db.error.create({
+                    data: {
+                        content: `Meta-Error for Sync AdAccount (${account.id}): ${data.error.message}`
+                    }
+                });
+                continue;
+            }
 
             for (const campaign of data.data) {
                 await ctx.db.campaign.upsert({
@@ -405,6 +435,24 @@ export const metaRouter = createTRPCRouter({
 
 async function fetchMeta(endpoint: string, access_token: string) {
     const res = await fetch(`${META_BASE}${endpoint}&access_token=${access_token}`);
-    if (!res.ok) throw new Error(`Meta API responded with ${res.status}`);
+    if (!res.ok) {
+        const error = await res.json() as MetaError;
+        console.error('Meta-API-Error:', error);
+        throw new Error(`Meta API responded with (${res.status}) ${error.error.message}`);
+    }
     return res.json() as Promise<AdAccount | Campaign | CampaignInsights>;
+}
+
+async function fetchMetaCron(endpoint: string, access_token: string) {
+    const res = await fetch(`${META_BASE}${endpoint}&access_token=${access_token}`);
+    return res.json() as Promise<AdAccount | Campaign | CampaignInsights | MetaError>;
+}
+
+function isMetaError(data: AdAccount | Campaign | CampaignInsights | MetaError): data is MetaError {
+    return (
+        typeof data === "object" &&
+        data !== null &&
+        "error" in data &&
+        typeof data.error?.message === "string"
+    );
 }

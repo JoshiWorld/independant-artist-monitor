@@ -61,6 +61,12 @@ model DailyMetric {
     @@unique([campaignId, date], name: "campaignId_date")
 }
 
+model Error {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    content   String
+}
+
 // Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())

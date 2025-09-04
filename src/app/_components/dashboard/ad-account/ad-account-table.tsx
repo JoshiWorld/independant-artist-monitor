@@ -285,7 +285,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-32">
-                        <DropdownMenuItem onClick={() => window.open(`https://adsmanager.facebook.com/adsmanager/manage/ads?${row.original.accId.replace("_", "=")}&date=${getDateDaysAgo(2)}_${new Date().toISOString().split('T')[0]}&selected_campaign_ids=${row.original.id}&nav_source=business_manager`, "_blank", "noopener,noreferrer")}>In Meta öffnen</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => window.open(`https://adsmanager.facebook.com/adsmanager/manage/ads?${row.original.accId.replace("_", "=")}&date=${getDateDaysAgo(4)}_${new Date().toISOString().split('T')[0]}&selected_campaign_ids=${row.original.id}&nav_source=business_manager`, "_blank", "noopener,noreferrer")}>In Meta öffnen</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem variant="default" onClick={() => router.push(`/dashboard/meta/ad-account/${row.original.accId}/campaign/${row.original.id}`)}>Analysieren</DropdownMenuItem>
                     </DropdownMenuContent>
