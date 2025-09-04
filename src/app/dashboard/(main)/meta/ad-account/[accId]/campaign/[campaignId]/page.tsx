@@ -15,8 +15,8 @@ type PageProps = {
 export default async function DashboardMainPage({ params }: PageProps) {
     const { campaignId, accId } = await params;
     const dates: DateRange = {
-        from: new Date(),
-        to: subDays(new Date(), 7)
+        from: subDays(new Date(), 7),
+        to: new Date()
     }
 
     void api.campaign.getCampaignStatsCards.prefetch({ accId, campaignId, from: dates.from, to: dates.to });
