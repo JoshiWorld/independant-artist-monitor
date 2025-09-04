@@ -173,7 +173,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   width={30}
                   height={30}
                 />
-                <span className="text-base font-semibold">IndependantArtists</span>
+                <span className="text-base font-semibold">IndependentArtists</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
