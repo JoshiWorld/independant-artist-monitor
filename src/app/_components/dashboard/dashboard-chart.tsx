@@ -41,9 +41,8 @@ const chartConfig = {
     },
 } satisfies ChartConfig
 
-export function DashboardChart() {
+export function DashboardChart({ timeRange, setTimeRange }: { timeRange: string; setTimeRange: (value: string) => void }) {
     const isMobile = useIsMobile()
-    const [timeRange, setTimeRange] = React.useState("14d")
 
     const { data } = api.user.getDashboardStatsChart.useQuery();
 
@@ -51,6 +50,7 @@ export function DashboardChart() {
         if (isMobile) {
             setTimeRange("7d")
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isMobile]);
 
     if(!data) {

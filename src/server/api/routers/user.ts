@@ -197,7 +197,21 @@ export const userRouter = createTRPCRouter({
         return stats;
     }),
 
-    getDashboardCampaigns: protectedProcedure.query(async ({ ctx }) => {
+    getDashboardCampaigns: protectedProcedure.input(z.object({ timeRange: z.string().optional() })).query(async ({ ctx, input }) => {
+        let timeRange = 14;
+        switch(input.timeRange) {
+            case "7d":
+                timeRange = 7;
+                break;
+            case "3d":
+                timeRange = 3;
+                break;
+            case "14d":
+            default:
+                timeRange = 14;
+                break;
+        }
+
         const campaings = await ctx.db.campaign.findMany({
             where: {
                 account: {
@@ -225,6 +239,11 @@ export const userRouter = createTRPCRouter({
                     }
                 },
                 metrics: {
+                    where: {
+                        date: {
+                            gte: new Date(new Date().setDate(new Date().getDate() - timeRange))
+                        }
+                    },
                     select: {
                         convPrice: true,
                         clicks: true,

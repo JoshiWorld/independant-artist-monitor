@@ -326,8 +326,8 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
     )
 }
 
-export function DashboardTable() {
-    const { data } = api.user.getDashboardCampaigns.useQuery();
+export function DashboardTable({ timeRange }: { timeRange: string }) {
+    const { data } = api.user.getDashboardCampaigns.useQuery({ timeRange });
 
     if (!data) {
         return <LoadingDots />;
@@ -337,11 +337,11 @@ export function DashboardTable() {
 }
 
 function DataTable({
-    data: initialData,
+    data,
 }: {
     data: z.infer<typeof schema>[]
 }) {
-    const [data, setData] = React.useState(() => initialData)
+    // const [data, setData] = React.useState(() => initialData)
     const [tab, setTab] = React.useState("all");
     const [rowSelection, setRowSelection] = React.useState({})
     const [columnVisibility, setColumnVisibility] =
@@ -418,11 +418,11 @@ function DataTable({
     function handleDragEnd(event: DragEndEvent) {
         const { active, over } = event
         if (active && over && active.id !== over.id) {
-            setData((data) => {
-                const oldIndex = dataIds.indexOf(active.id)
-                const newIndex = dataIds.indexOf(over.id)
-                return arrayMove(data, oldIndex, newIndex)
-            })
+            // setData((data) => {
+            //     const oldIndex = dataIds.indexOf(active.id)
+            //     const newIndex = dataIds.indexOf(over.id)
+            //     return arrayMove(data, oldIndex, newIndex)
+            // })
         }
     }
 
