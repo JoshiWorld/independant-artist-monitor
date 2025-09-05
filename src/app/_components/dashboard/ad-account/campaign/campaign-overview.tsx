@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CalendarRangeIcon } from "lucide-react";
-import { format } from "date-fns";
+import { addHours, format } from "date-fns";
 import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from "framer-motion"
 import { CampaignChart } from "./campaign-chart";
@@ -58,8 +58,8 @@ function SelectDateRange({ dateRange, setDateRange, dateSwitch, setDateSwitch }:
     function normalizeRange(range: DateRange | undefined): DateRange | undefined {
         if (!range?.from || !range?.to) return range;
         return range.from <= range.to
-            ? range
-            : { from: range.to, to: range.from }; // swap if reversed
+            ? { from: addHours(range.from, 2), to: addHours(range.to, 2) }
+            : { from: addHours(range.to, 2), to: addHours(range.from, 2) }; // swap if reversed
     }
 
     return (
