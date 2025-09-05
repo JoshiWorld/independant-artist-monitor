@@ -4,9 +4,12 @@ import Link from "next/link";
 import { auth } from "@/server/auth";
 import { api, HydrateClient } from "@/trpc/server";
 import { SignInTest } from "./_components/post";
+import { redirect } from "next/navigation";
 
 export default async function Home() {
-  // const session = await auth();
+  const session = await auth();
+
+  if(session?.user) return redirect('/dashboard');
 
   // if (session?.user) {
   //   void api.post.getLatest.prefetch();
