@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
             await api.meta.syncAdAccountsCron({ accessToken: user.metaAccessToken, userId: user.id });
             await api.meta.syncCampaignsCron({ accessToken: user.metaAccessToken, userId: user.id });
 
+            let count = 1;
             for (const campaign of user.adAccounts.flatMap(acc => acc.campaigns)) {
                 await api.meta.syncCampaignInsightsCron({
                     since: yesterday.toISOString().split('T')[0]!,
@@ -106,6 +107,8 @@ export async function GET(req: NextRequest) {
                     campaignId: campaign.id,
                     accessToken: user.metaAccessToken
                 });
+                count++;
+                console.log(`Kampagne (${campaign.id}) Nr: ${count}/${user.adAccounts.flatMap(acc => acc.campaigns).length}`);
             }
         }
 
