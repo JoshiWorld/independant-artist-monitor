@@ -44,6 +44,10 @@ export const adAccountRouter = createTRPCRouter({
             },
             orderBy: {
                 createdAt: "desc",
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["adAccounts", "campaigns", input.id]
             }
         });
 
@@ -95,6 +99,10 @@ export const adAccountRouter = createTRPCRouter({
             },
             select: {
                 name: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["adAccounts", input.id]
             }
         });
     })

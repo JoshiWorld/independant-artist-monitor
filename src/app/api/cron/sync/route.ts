@@ -112,6 +112,10 @@ export async function GET(req: NextRequest) {
             }
         }
 
+        await db.$accelerate.invalidate({
+            tags: ["adAccounts", "campaigns", "campaignInsights"]
+        })
+
         return NextResponse.json({ message: "Sync done" }, { status: 200 });
     } catch (error) {
         console.error("[CRON][SYNC] Error during sync:", error);

@@ -1,5 +1,5 @@
 import type { AdAccount, Campaign, CampaignInsights, MetaError } from "@/types/meta";
-import { createTRPCRouter, metaProcedure, publicProcedure } from "../trpc";
+import { createTRPCRouter, metaProcedure, protectedProcedure, publicProcedure } from "../trpc";
 import { z } from "zod";
 import type { CampaignStatus } from "@prisma/client";
 
@@ -50,6 +50,10 @@ export const metaRouter = createTRPCRouter({
             },
             select: {
                 id: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns"]
             }
         });
     }),
@@ -63,6 +67,10 @@ export const metaRouter = createTRPCRouter({
             },
             select: {
                 id: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["adAccounts"]
             }
         });
     }),
@@ -854,6 +862,12 @@ export const metaRouter = createTRPCRouter({
         // }
 
         // return { success: true, count: accounts.length };
+    }),
+
+    invalidateCache: protectedProcedure.mutation(({ ctx }) => {
+        return ctx.db.$accelerate.invalidate({
+            tags: ["adAccounts", "campaigns", "campaignInsights"]
+        });
     })
 
     /* SYNC META DATA END */

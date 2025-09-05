@@ -15,6 +15,10 @@ export const userRouter = createTRPCRouter({
                 name: true,
                 email: true,
                 image: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["users", ctx.session.user.id]
             }
         });
     }),
@@ -34,6 +38,10 @@ export const userRouter = createTRPCRouter({
                 select: {
                     id: true,
                     name: true,
+                },
+                cacheStrategy: {
+                    ttl: 60 * 60 * 24, // 24 Stunden
+                    tags: ["adAccounts"]
                 }
             });
         }
@@ -47,6 +55,10 @@ export const userRouter = createTRPCRouter({
             select: {
                 id: true,
                 name: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["adAccounts"]
             }
         });
     }),
@@ -59,6 +71,10 @@ export const userRouter = createTRPCRouter({
             select: {
                 yellowMax: true,
                 greenMax: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["users", ctx.session.user.id]
             }
         });
 
@@ -87,6 +103,10 @@ export const userRouter = createTRPCRouter({
                         convPrice: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns"]
             }
         });
 
@@ -140,6 +160,10 @@ export const userRouter = createTRPCRouter({
                         convPrice: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns"]
             }
         });
 
@@ -215,6 +239,10 @@ export const userRouter = createTRPCRouter({
             },
             orderBy: {
                 createdAt: "desc",
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns"]
             }
         });
 
@@ -295,8 +323,12 @@ export const userRouter = createTRPCRouter({
             data: {
                 metaAccessToken: longLivedToken.access_token,
                 metaTokenExpiry: new Date(Date.now() + longLivedToken.expires_in * 1000), // expires_in is in seconds
-            }
+            },
         });
+
+        await ctx.db.$accelerate.invalidate({
+            tags: [ctx.session.user.id]
+        })
 
         return { success: true, user: updatedUser };
     }),
@@ -311,6 +343,10 @@ export const userRouter = createTRPCRouter({
                 metaTokenExpiry: true,
                 greenMax: true,
                 yellowMax: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["users", ctx.session.user.id]
             }
         });
     }),
@@ -322,34 +358,50 @@ export const userRouter = createTRPCRouter({
             },
             select: {
                 metaTokenExpiry: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["users", ctx.session.user.id]
             }
         });
     }),
 
-    removeMetaAccess: protectedProcedure.mutation(({ ctx }) => {
-        return ctx.db.user.update({
+    removeMetaAccess: protectedProcedure.mutation(async ({ ctx }) => {
+        const updatedUser = ctx.db.user.update({
             where: {
                 id: ctx.session.user.id
             },
             data: {
                 metaAccessToken: null,
                 metaTokenExpiry: null
-            }
+            },
         });
+
+        await ctx.db.$accelerate.invalidate({
+            tags: [ctx.session.user.id]
+        })
+
+        return updatedUser;
     }),
 
-    removeMetaData: protectedProcedure.mutation(({ ctx }) => {
-        return ctx.db.adAccount.deleteMany({
+    removeMetaData: protectedProcedure.mutation(async ({ ctx }) => {
+        const deletedData = await ctx.db.adAccount.deleteMany({
             where: {
                 user: {
                     id: ctx.session.user.id
                 }
             },
         });
+
+        await ctx.db.$accelerate.invalidate({
+            tags: ["adAccounts", "campaigns", "campaignInsights"]
+        })
+
+        return deletedData;
     }),
 
-    update: protectedProcedure.input(z.object({ greenMax: z.number(), yellowMax: z.number() })).mutation(({ ctx, input }) => {
-        return ctx.db.user.update({
+    update: protectedProcedure.input(z.object({ greenMax: z.number(), yellowMax: z.number() })).mutation(async ({ ctx, input }) => {
+        const updatedUser = await ctx.db.user.update({
             where: {
                 id: ctx.session.user.id
             },
@@ -358,5 +410,11 @@ export const userRouter = createTRPCRouter({
                 yellowMax: input.yellowMax
             }
         });
+
+        await ctx.db.$accelerate.invalidate({
+            tags: [ctx.session.user.id, "campaigns", "campaignInsights"]
+        })
+
+        return updatedUser;
     })
 })

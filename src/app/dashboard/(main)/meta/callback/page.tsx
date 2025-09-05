@@ -108,12 +108,8 @@ export default function MetaCallbackPage() {
                 i++;
                 setProgress(Math.round((i / campaigns.length) * 100));
             } 
-
-            await utils.user.invalidate();
-            await utils.meta.invalidate();
             toast.success("KampagnenInsights wurden erfolgreich synchronisiert");
-            setProgress(100);
-            router.push("/dashboard");
+            invalidateCache.mutate();
         },
         onError: (error) => {
             toast.error("Fehler beim Synchronisieren der KampagnenInsights", { description: error.message });
@@ -130,7 +126,23 @@ export default function MetaCallbackPage() {
         }
     });
 
-    const isPendingInit = setTokenInit.isPending || removeMetaData.isPending || syncAdAccounts.isPending || syncCampaigns.isPending || syncCampaignInsights.isPending || syncInsightsHelper.isPending || saving;
+    const invalidateCache = api.meta.invalidateCache.useMutation({
+        onSuccess: async () => {
+            toast.success("Cache wurde neugeladen. Die Seite muss einmal aktualisiert werden")
+            setSaving(false);
+            await utils.user.invalidate();
+            await utils.meta.invalidate();
+            setProgress(100);
+            router.push("/dashboard");
+        },
+        onError: (error) => {
+            console.error("Fehler beim Invalidieren vom Cache:", error);
+            toast.error("Fehler beim Invalidieren vom Cache", { description: error.message });
+            setSaving(false);
+        }
+    });
+
+    const isPendingInit = setTokenInit.isPending || invalidateCache.isPending || removeMetaData.isPending || syncAdAccounts.isPending || syncCampaigns.isPending || syncCampaignInsights.isPending || syncInsightsHelper.isPending || saving;
     const isPendingToken = setToken.isPending || saveToken;
 
     return (

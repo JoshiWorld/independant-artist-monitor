@@ -7,8 +7,8 @@ export const campaignRouter = createTRPCRouter({
         id: z.string(),
         greenMax: z.number().nullable(),
         yellowMax: z.number().nullable()
-    })).mutation(({ ctx, input }) => {
-        return ctx.db.campaign.update({
+    })).mutation(async ({ ctx, input }) => {
+        const updatedCampaign = ctx.db.campaign.update({
             where: {
                 account: {
                     user: {
@@ -22,6 +22,12 @@ export const campaignRouter = createTRPCRouter({
                 yellowMax: input.yellowMax
             }
         });
+
+        await ctx.db.$accelerate.invalidate({
+            tags: ["campaigns", input.id]
+        })
+
+        return updatedCampaign;
     }),
 
     getTableCellChart: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
@@ -46,6 +52,10 @@ export const campaignRouter = createTRPCRouter({
                         convPrice: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns", input.id]
             }
         });
 
@@ -111,6 +121,10 @@ export const campaignRouter = createTRPCRouter({
                         ctr: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns", input.campaignId]
             }
         });
 
@@ -170,6 +184,10 @@ export const campaignRouter = createTRPCRouter({
                         spend: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns", input.campaignId]
             }
         });
 
@@ -226,6 +244,10 @@ export const campaignRouter = createTRPCRouter({
                         date: true,
                     }
                 }
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns", input.campaignId]
             }
         });
 
@@ -270,6 +292,10 @@ export const campaignRouter = createTRPCRouter({
             },
             select: {
                 name: true,
+            },
+            cacheStrategy: {
+                ttl: 60 * 60 * 24, // 24 Stunden
+                tags: ["campaigns", input.id]
             }
         });
     })

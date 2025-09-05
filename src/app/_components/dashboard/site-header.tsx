@@ -112,11 +112,8 @@ function SyncDataButton() {
                 i++;
                 toast.info("Insights werden synchronisiert", { description: `${Math.round((i / campaigns.length) * 100)}%` });
             }
-            setRefreshing(false);
-            await utils.user.invalidate();
-            await utils.meta.invalidate();
-            toast.success("Insights wurden erfolgreich synchronisiert");
-            router.refresh();
+            toast.success("Insights wurden erfolgreich synchronisiert", { description: "Der Cache wird jetzt neugeladen.." });
+            invalidateCache.mutate();
         },
         onError: (error) => {
             toast.error("Fehler beim Synchronisieren der Insights", { description: error.message });
@@ -133,7 +130,22 @@ function SyncDataButton() {
         }
     });
 
-    const isPending = syncAdAccounts.isPending || syncCampaigns.isPending || syncCampaignInsights.isPending || syncInsightsHelper.isPending || refreshing;
+    const invalidateCache = api.meta.invalidateCache.useMutation({
+        onSuccess: async () => {
+            toast.success("Cache wurde neugeladen. Die Seite muss einmal aktualisiert werden");
+            await utils.user.invalidate();
+            await utils.meta.invalidate();
+            setRefreshing(false);
+            router.refresh();
+        },
+        onError: (error) => {
+            console.error("Fehler beim Invalidieren vom Cache:", error);
+            toast.error("Fehler beim Invalidieren vom Cache", { description: error.message });
+            setRefreshing(false);
+        }
+    });
+
+    const isPending = syncAdAccounts.isPending || syncCampaigns.isPending || syncCampaignInsights.isPending || syncInsightsHelper.isPending || invalidateCache.isPending || refreshing;
 
     const refreshData = () => {
         setRefreshing(true);
