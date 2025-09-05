@@ -53,6 +53,9 @@ export async function GET(req: NextRequest) {
                     select: {
                         id: true,
                         campaigns: {
+                            where: {
+                                status: "ACTIVE"
+                            },
                             select: {
                                 id: true,
                             }
