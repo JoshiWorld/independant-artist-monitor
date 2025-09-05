@@ -130,6 +130,9 @@ export const metaRouter = createTRPCRouter({
                             clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
                             convPrice: isNaN(convPrice) ? 0 : convPrice,
                         },
+                        select: {
+                            id: true
+                        }
                     });
                 }
 
@@ -219,6 +222,9 @@ export const metaRouter = createTRPCRouter({
                                     clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
                                     convPrice: isNaN(convPrice) ? 0 : convPrice,
                                 },
+                                select: {
+                                    id: true,
+                                }
                             });
                         }
 
@@ -289,6 +295,9 @@ export const metaRouter = createTRPCRouter({
                             clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
                             convPrice: isNaN(convPrice) ? 0 : convPrice,
                         },
+                        select: {
+                            id: true,
+                        }
                     });
                 }
 
@@ -500,6 +509,9 @@ export const metaRouter = createTRPCRouter({
                             clicks: isNaN(parseInt(dataDay.clicks)) ? 0 : parseInt(dataDay.clicks),
                             convPrice: isNaN(convPrice) ? 0 : convPrice,
                         },
+                        select: {
+                            id: true,
+                        }
                     });
                 }
 
@@ -593,6 +605,9 @@ export const metaRouter = createTRPCRouter({
                         name: account.name,
                         user: { connect: { id: ctx.session.user.id } },
                     },
+                    select: {
+                        id: true,
+                    }
                 });
             }
 
@@ -645,6 +660,9 @@ export const metaRouter = createTRPCRouter({
                         name: account.name,
                         user: { connect: { id: input.userId } },
                     },
+                    select: {
+                        id: true,
+                    }
                 });
             }
 
@@ -717,6 +735,9 @@ export const metaRouter = createTRPCRouter({
                             connect: { id: input.adAccountId },
                         },
                     },
+                    select: {
+                        id: true,
+                    }
                 });
             }
 
@@ -801,6 +822,9 @@ export const metaRouter = createTRPCRouter({
                                 connect: { id: account.id },
                             },
                         },
+                        select: {
+                            id: true,
+                        }
                     });
                 }
 
