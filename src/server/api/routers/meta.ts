@@ -3,7 +3,7 @@ import { createTRPCRouter, metaProcedure, protectedProcedure, publicProcedure } 
 import { z } from "zod";
 import type { CampaignStatus } from "@prisma/client";
 
-const META_BASE = "https://graph.facebook.com/v21.0";
+const META_BASE = "https://graph.facebook.com/v23.0";
 
 export const metaRouter = createTRPCRouter({
     getAdAccounts: metaProcedure.query(async ({ ctx }) => {
@@ -967,7 +967,7 @@ async function fetchAllCampaigns(
         allCampaigns = allCampaigns.concat(res.data);
 
         url = res.paging?.next
-            ? res.paging.next.replace("https://graph.facebook.com/v21.0", "")
+            ? res.paging.next.replace(META_BASE, "")
             : "";
     }
 
@@ -993,7 +993,7 @@ async function fetchAllInsights(
         allData = allData.concat(res.data);
 
         url = res.paging?.next
-            ? res.paging.next.replace("https://graph.facebook.com/v21.0", "")
+            ? res.paging.next.replace(META_BASE, "")
             : "";
     }
 
@@ -1029,7 +1029,7 @@ async function fetchAllInsightsSync(
         allData = allData.concat(res.data);
 
         url = res.paging?.next
-            ? res.paging.next.replace("https://graph.facebook.com/v21.0", "")
+            ? res.paging.next.replace(META_BASE, "")
             : "";
     }
 
@@ -1054,7 +1054,7 @@ async function fetchAllInsightsFull(
         allData = allData.concat(res.data);
 
         url = res.paging?.next
-            ? res.paging.next.replace("https://graph.facebook.com/v21.0", "")
+            ? res.paging.next.replace(META_BASE, "")
             : "";
     }
 
