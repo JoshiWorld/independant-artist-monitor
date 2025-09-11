@@ -107,8 +107,8 @@ export async function GET(req: NextRequest) {
                     campaignId: campaign.id,
                     accessToken: user.metaAccessToken
                 });
-                count++;
                 console.log(`Kampagne (${campaign.id}) Nr: ${count}/${user.adAccounts.flatMap(acc => acc.campaigns).length}`);
+                count++;
             }
         }
 
