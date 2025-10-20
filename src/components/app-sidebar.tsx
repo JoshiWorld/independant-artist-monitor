@@ -13,6 +13,7 @@ import {
   IconFolder,
   IconHelp,
   IconListDetails,
+  IconPlaylist,
   IconReport,
   IconSearch,
   IconSettings,
@@ -43,6 +44,11 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: IconDashboard,
+    },
+    {
+      title: "Playlist Deeplink",
+      url: "/dashboard/playlistdeeplink",
+      icon: IconPlaylist,
     },
     // {
     //   title: "Lifecycle",
