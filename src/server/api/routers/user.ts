@@ -310,7 +310,7 @@ export const userRouter = createTRPCRouter({
     setMetaAccessToken: protectedProcedure.input(z.object({ code: z.string() })).mutation(async ({ ctx, input }) => {
         const redirect_uri = `${env.NEXTAUTH_URL}/dashboard/meta/callback`;
 
-        const tokenResponse = await fetch(`https://graph.facebook.com/v23.0/oauth/access_token?client_id=${env.FACEBOOK_CLIENT_ID}&redirect_uri=${redirect_uri}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&code=${input.code}`, {
+        const tokenResponse = await fetch(`https://graph.facebook.com/v24.0/oauth/access_token?client_id=${env.FACEBOOK_CLIENT_ID}&redirect_uri=${redirect_uri}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&code=${input.code}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json"
@@ -325,7 +325,7 @@ export const userRouter = createTRPCRouter({
 
         const tokenData = await tokenResponse.json() as TokenResponse;
         const longLivedAccessTokenRes = await fetch(
-            `https://graph.facebook.com/v23.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.FACEBOOK_CLIENT_ID}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${tokenData.access_token}`,
+            `https://graph.facebook.com/v24.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.FACEBOOK_CLIENT_ID}&client_secret=${env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${tokenData.access_token}`,
         );
 
         if (!longLivedAccessTokenRes.ok) {

@@ -3,7 +3,7 @@ import { createTRPCRouter, metaProcedure, protectedProcedure, publicProcedure } 
 import { z } from "zod";
 import type { CampaignStatus } from "@prisma/client";
 
-const META_BASE = "https://graph.facebook.com/v23.0";
+const META_BASE = "https://graph.facebook.com/v24.0";
 
 export const metaRouter = createTRPCRouter({
     getAdAccounts: metaProcedure.query(async ({ ctx }) => {
